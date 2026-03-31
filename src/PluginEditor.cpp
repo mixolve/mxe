@@ -17,18 +17,21 @@ constexpr int parameterGap = 2;
 constexpr int footerHeight = 20;
 constexpr int pageColumnWidth = fixedEditorWidth - (editorInsetX * 2);
 constexpr int sectionWidth = pageColumnWidth;
-constexpr int controlRowWidth = sectionWidth - 8;
+constexpr int sectionContentInsetX = 4;
+constexpr int sectionContentInsetY = 6;
+constexpr int controlRowWidth = sectionWidth - (sectionContentInsetX * 2);
 constexpr int parameterValueWidth = 94;
 constexpr int parameterNameWidth = controlRowWidth - parameterGap - parameterValueWidth;
 constexpr int monitorButtonGap = 2;
+constexpr int monitorRowOffsetY = 4;
 constexpr float uiFontSize = 20.0f;
-constexpr float valueBoxDragNormalisedPerPixel = 0.0080f;
-constexpr float smoothWheelStepThreshold = 0.045f;
+constexpr float valueBoxDragNormalisedPerPixel = 0.0050f;
+constexpr float smoothWheelStepThreshold = 0.030f;
+constexpr float wheelStepMultiplier = 2.0f;
 
 const auto uiWhite = juce::Colour(0xffffffff);
 const auto uiBlack = juce::Colour(0xff000000);
 const auto uiAccent = juce::Colour(0xff9999ff);
-const auto uiChanged = juce::Colour(0xffffcc99);
 const auto uiGrey950 = juce::Colour(0xff121212);
 const auto uiGrey900 = juce::Colour(0xff1a1a1a);
 const auto uiGrey800 = juce::Colour(0xff242424);
@@ -403,7 +406,7 @@ public:
             return;
 
         const auto currentValue = parameter->convertFrom0to1(parameter->getValue());
-        const auto unclampedValue = currentValue + (interval * static_cast<float>(stepCount));
+        const auto unclampedValue = currentValue + (interval * wheelStepMultiplier * static_cast<float>(stepCount));
         const auto legalValue = range.snapToLegalValue(juce::jlimit(range.start, range.end, unclampedValue));
 
         parameter->beginChangeGesture();
@@ -628,21 +631,14 @@ public:
     {
     }
 
-    void setChangedState(const bool shouldBeChanged)
-    {
-        if (changedState == shouldBeChanged)
-            return;
-
-        changedState = shouldBeChanged;
-        repaint();
-    }
+    void setChangedState(const bool shouldBeChanged) { juce::ignoreUnused(shouldBeChanged); }
 
     void paintButton(juce::Graphics& graphics, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
     {
         juce::ignoreUnused(shouldDrawButtonAsHighlighted);
 
         const auto fill = shouldDrawButtonAsDown ? uiGrey700 : uiGrey800;
-        const auto outline = changedState ? uiChanged : (getToggleState() ? accentColour : uiGrey500);
+        const auto outline = getToggleState() ? accentColour : uiGrey500;
         const auto textColour = uiWhite;
 
         graphics.setColour(fill);
@@ -658,7 +654,6 @@ public:
 
 private:
     juce::Colour accentColour;
-    bool changedState = false;
 };
 
 class ParameterControl final : public juce::Component
@@ -801,8 +796,8 @@ private:
             return;
         }
 
-        const auto outline = changedState ? uiChanged : uiGrey500;
-        const auto highlight = changedState ? uiChanged : accentColour;
+        const auto outline = uiGrey500;
+        const auto highlight = accentColour;
         title.setColour(juce::Label::outlineColourId, outline);
 
         if (valueBox != nullptr)
@@ -965,7 +960,7 @@ public:
 
     void resized() override
     {
-        auto bounds = getLocalBounds().reduced(4, 6);
+        auto bounds = getLocalBounds().reduced(sectionContentInsetX, sectionContentInsetY);
         headerButton.setBounds(bounds.removeFromTop(22));
         bounds.removeFromTop(6);
 
@@ -1306,7 +1301,7 @@ void Mx6AudioProcessorEditor::resized()
     bounds.removeFromLeft(editorInsetX);
     bounds.removeFromRight(editorInsetX);
     bounds.removeFromBottom(editorInsetBottom);
-    auto monitorRow = bounds.removeFromTop(22);
+    auto monitorRow = bounds.removeFromTop(22).reduced(sectionContentInsetX, 0);
     const auto buttonCount = static_cast<int>(monitorButtons.size());
     const auto totalGapWidth = monitorButtonGap * (buttonCount - 1);
     const auto baseButtonWidth = (monitorRow.getWidth() - totalGapWidth) / buttonCount;
@@ -1318,7 +1313,7 @@ void Mx6AudioProcessorEditor::resized()
             continue;
 
         const auto buttonWidth = baseButtonWidth + (remainder > 0 ? 1 : 0);
-        button->setBounds(monitorRow.removeFromLeft(buttonWidth));
+        button->setBounds(monitorRow.removeFromLeft(buttonWidth).translated(0, monitorRowOffsetY));
         monitorRow.removeFromLeft(monitorButtonGap);
         remainder = juce::jmax(0, remainder - 1);
     }
@@ -1457,9 +1452,4 @@ void Mx6AudioProcessorEditor::updateBandPageVisibility()
 
 void Mx6AudioProcessorEditor::updatePageChangedIndicators()
 {
-    for (auto& monitorButton : monitorButtons)
-    {
-        if (auto* button = dynamic_cast<BoxTextButton*>(monitorButton.get()))
-            button->setChangedState(false);
-    }
 }
