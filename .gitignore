@@ -10,6 +10,7 @@ xcuserdata/
 CMakeUserPresets.json
 compile_commands.json
 .idea/
+.vscode/
 .cache/
 conventions.md
 *.swp
