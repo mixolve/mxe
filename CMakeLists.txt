@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(MX6_SDK_SHIM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sdk-shims")
+set(MX6_SDK_SHIM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/apple-sdk-shims")
 option(MX6_USE_LOCAL_JUCE "Use a local JUCE checkout via JUCE_DIR" OFF)
 
 if(APPLE)
@@ -52,6 +52,9 @@ option(MX6_ENABLE_VST3_DEPLOY "Deploy the built VST3 bundle after build" ${MX6_E
 set(MX6_DEPLOY_DIR "${MX6_DEFAULT_DEPLOY_DIR}" CACHE PATH "Directory where the built VST3 bundle will be deployed after build")
 set(MX6_ARCHIVE_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH "Directory where the packaged VST3 zip will be written after build")
 set(MX6_RELEASE_ARCHIVE_NAME "${MX6_DEFAULT_RELEASE_ARCHIVE_NAME}" CACHE STRING "Filename for the packaged VST3 release archive")
+set(MX6_PLUGIN_BUNDLE_NAME "mx6.vst3")
+set(MX6_PACKAGE_STAGE_DIR "${MX6_ARCHIVE_OUTPUT_DIR}/${MX6_PLUGIN_BUNDLE_NAME}")
+set(MX6_PACKAGE_ZIP_PATH "${MX6_ARCHIVE_OUTPUT_DIR}/${MX6_RELEASE_ARCHIVE_NAME}")
 
 if(APPLE)
     if(DEFINED ENV{CPATH} AND NOT "$ENV{CPATH}" STREQUAL "")
@@ -105,16 +108,16 @@ juce_generate_juce_header(mx6)
 
 target_sources(mx6
     PRIVATE
-        src/PluginEditor.cpp
-        src/PluginEditor.h
-        src/PluginProcessor.cpp
-        src/PluginProcessor.h
-        src/dsp/DspCore.cpp
-        src/dsp/DspCore.h
-        src/dsp/MultibandCrossover.cpp
-        src/dsp/MultibandCrossover.h
-        src/dsp/MultibandProcessor.cpp
-        src/dsp/MultibandProcessor.h
+        source/PluginEditor.cpp
+        source/PluginEditor.h
+        source/PluginProcessor.cpp
+        source/PluginProcessor.h
+        source/dsp/DspCore.cpp
+        source/dsp/DspCore.h
+        source/dsp/MultibandCrossover.cpp
+        source/dsp/MultibandCrossover.h
+        source/dsp/MultibandProcessor.cpp
+        source/dsp/MultibandProcessor.h
 )
 
 target_compile_definitions(mx6
@@ -142,93 +145,19 @@ target_link_libraries(mx6
 
 if(MX6_ENABLE_VST3_DEPLOY AND NOT MX6_DEPLOY_DIR STREQUAL "")
     add_custom_command(TARGET mx6_VST3 POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-            -DPLUGIN_BINARY=$<TARGET_FILE:mx6_VST3>
-            -DDEPLOY_DIR=${MX6_DEPLOY_DIR}
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeployVST3.cmake"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${MX6_DEPLOY_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E rm -rf "${MX6_DEPLOY_DIR}/${MX6_PLUGIN_BUNDLE_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:mx6_VST3>" "${MX6_DEPLOY_DIR}/${MX6_PLUGIN_BUNDLE_NAME}"
         VERBATIM
     )
 endif()
 
 add_custom_command(TARGET mx6_VST3 POST_BUILD
-    COMMAND "${CMAKE_COMMAND}"
-        -DPLUGIN_BINARY=$<TARGET_FILE:mx6_VST3>
-        -DOUTPUT_DIR=${MX6_ARCHIVE_OUTPUT_DIR}
-        -DARCHIVE_NAME=${MX6_RELEASE_ARCHIVE_NAME}
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/PackageVST3Archive.cmake"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MX6_ARCHIVE_OUTPUT_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${MX6_PACKAGE_STAGE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "$<TARGET_BUNDLE_DIR:mx6_VST3>" "${MX6_PACKAGE_STAGE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MX6_PACKAGE_ZIP_PATH}"
+    COMMAND ${CMAKE_COMMAND} -E chdir "${MX6_ARCHIVE_OUTPUT_DIR}" ${CMAKE_COMMAND} -E tar "cf" "${MX6_PACKAGE_ZIP_PATH}" --format=zip -- "${MX6_PLUGIN_BUNDLE_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${MX6_PACKAGE_STAGE_DIR}"
     VERBATIM
-)
-
-juce_add_console_app(mx6_raw_render
-    PRODUCT_NAME "mx6_raw_render"
-)
-
-juce_generate_juce_header(mx6_raw_render)
-
-target_sources(mx6_raw_render
-    PRIVATE
-        tools/mx6_raw_render.cpp
-        src/dsp/DspCore.cpp
-        src/dsp/DspCore.h
-)
-
-target_compile_definitions(mx6_raw_render
-    PRIVATE
-        JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0
-)
-
-target_include_directories(mx6_raw_render
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${MX6_SDK_SHIM_DIR}"
-)
-
-target_link_libraries(mx6_raw_render
-    PRIVATE
-        juce::juce_audio_formats
-        juce::juce_dsp
-    PUBLIC
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_lto_flags
-        juce::juce_recommended_warning_flags
-)
-
-juce_add_console_app(mx6_multiband_sanity
-    PRODUCT_NAME "mx6_multiband_sanity"
-)
-
-juce_generate_juce_header(mx6_multiband_sanity)
-
-target_sources(mx6_multiband_sanity
-    PRIVATE
-        tools/mx6_multiband_sanity.cpp
-        src/dsp/DspCore.cpp
-        src/dsp/DspCore.h
-        src/dsp/MultibandCrossover.cpp
-        src/dsp/MultibandCrossover.h
-        src/dsp/MultibandProcessor.cpp
-        src/dsp/MultibandProcessor.h
-)
-
-target_compile_definitions(mx6_multiband_sanity
-    PRIVATE
-        JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0
-)
-
-target_include_directories(mx6_multiband_sanity
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${MX6_SDK_SHIM_DIR}"
-)
-
-target_link_libraries(mx6_multiband_sanity
-    PRIVATE
-        juce::juce_audio_basics
-        juce::juce_dsp
-    PUBLIC
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_lto_flags
-        juce::juce_recommended_warning_flags
 )
