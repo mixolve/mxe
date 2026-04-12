@@ -18,7 +18,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(MXE_SDK_SHIM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/apple-sdk-shims")
 option(MXE_USE_LOCAL_JUCE "Use a local JUCE checkout via JUCE_DIR" OFF)
 
 if(APPLE)
@@ -55,14 +54,6 @@ set(MXE_RELEASE_ARCHIVE_NAME "${MXE_DEFAULT_RELEASE_ARCHIVE_NAME}" CACHE STRING 
 set(MXE_PLUGIN_BUNDLE_NAME "mxe.vst3")
 set(MXE_PACKAGE_STAGE_DIR "${MXE_ARCHIVE_OUTPUT_DIR}/${MXE_PLUGIN_BUNDLE_NAME}")
 set(MXE_PACKAGE_ZIP_PATH "${MXE_ARCHIVE_OUTPUT_DIR}/${MXE_RELEASE_ARCHIVE_NAME}")
-
-if(APPLE)
-    if(DEFINED ENV{CPATH} AND NOT "$ENV{CPATH}" STREQUAL "")
-        set(ENV{CPATH} "${MXE_SDK_SHIM_DIR}:$ENV{CPATH}")
-    else()
-        set(ENV{CPATH} "${MXE_SDK_SHIM_DIR}")
-    endif()
-endif()
 
 if(MXE_USE_LOCAL_JUCE)
     if(NOT DEFINED JUCE_DIR)
@@ -125,11 +116,6 @@ target_compile_definitions(mxe
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
-)
-
-target_include_directories(mxe
-    PRIVATE
-        "${MXE_SDK_SHIM_DIR}"
 )
 
 target_link_libraries(mxe
