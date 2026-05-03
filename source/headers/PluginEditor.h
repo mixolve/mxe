@@ -5,7 +5,15 @@
 #include "PluginProcessor.h"
 
 #include <array>
+#include <functional>
 #include <memory>
+
+namespace mxe::editor
+{
+class BandPageComponent;
+class BoxTextButton;
+class FullbandPageComponent;
+} // namespace mxe::editor
 
 class MxeAudioProcessorEditor final : public juce::AudioProcessorEditor
 {
@@ -15,10 +23,19 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    void scrollPageViewport(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel);
+    void showTextPrompt(const juce::String& currentText,
+                        std::function<bool(const juce::String&)> onCommit,
+                        std::function<void()> onClose = {},
+                        std::function<void()> onDismiss = {});
 
 private:
     static constexpr size_t numBands = mxe::dsp::MultibandProcessor::numBands;
     static constexpr size_t numMonitorButtons = numBands + 1;
+
+    void loadUiState();
+    void saveUiState();
 
     void selectBand(size_t bandIndex);
     void toggleManualSolo(size_t bandIndex);
@@ -28,16 +45,28 @@ private:
     void syncMonitorParameters();
     void updateMonitorButtons();
     void updateBandPageVisibility();
-    void updatePageChangedIndicators();
+    void showAboutPrompt();
+    void dismissPrompt();
+    juce::Rectangle<int> getAboutPromptAnchorBounds() const noexcept;
+    juce::Rectangle<int> getTextPromptAnchorBounds() const noexcept;
+    juce::Component* getCurrentPageComponent() const noexcept;
+    int getCurrentPagePreferredHeight() const noexcept;
+    void updatePageViewport();
     size_t getActiveSplitCount() const;
     size_t getActiveBandCount() const;
 
     std::array<std::unique_ptr<juce::Button>, numMonitorButtons> monitorButtons;
     std::array<juce::RangedAudioParameter*, numBands> soloParameters {};
     juce::RangedAudioParameter* activeSplitCountParameter = nullptr;
-    std::array<std::unique_ptr<juce::Component>, numBands> bandPages;
-    std::unique_ptr<juce::Component> allBandsPage;
-    juce::Label footerLabel;
+    MxeAudioProcessor& audioProcessor;
+    juce::AudioProcessorValueTreeState* valueTreeState = nullptr;
+    std::array<std::unique_ptr<mxe::editor::BandPageComponent>, numBands> bandPages;
+    std::unique_ptr<mxe::editor::FullbandPageComponent> allBandsPage;
+    juce::Viewport pageViewport;
+    std::unique_ptr<mxe::editor::BoxTextButton> footerTab;
+    std::unique_ptr<juce::Component> promptOverlay;
+    bool uiStateSavingEnabled = false;
+    bool uiStateLoaded = false;
     size_t visibleBandIndex = 0;
     std::array<bool, numBands> manualSoloMask {};
     bool allBandsActive = true;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DspSupport.h"
+
 #include <JuceHeader.h>
 
 #include <vector>
@@ -58,7 +60,6 @@ public:
     void reset();
     void setParameters(const Parameters& newParameters);
     void beginBlock(int numSamples);
-    void process(juce::AudioBuffer<float>& buffer);
     StereoSample processSample(double leftInput, double rightInput);
     static int getMaximumLatencySamples(double sampleRate) noexcept;
     int getLatencySamples() const noexcept;
@@ -109,26 +110,10 @@ private:
         int latencySamples = 0;
     };
 
-    struct SmoothedValue
-    {
-        double current = 1.0;
-        double target = 1.0;
-        double step = 0.0;
-        int remainingSteps = 0;
-
-        void snapTo(double value) noexcept;
-        void setTarget(double value) noexcept;
-        void beginBlock(int numSamples) noexcept;
-        void advance() noexcept;
-    };
-
-    static double roundToJsfxStep(double value);
-    static double dbToAmp(double decibels);
     static double safeAbs(double value);
     static double clamp1(double value);
     static double satShape(double value, double kneeDb);
     static double tensionTarget(double env, double threshold, double floorThreshold, double floorHysteresis, double tension);
-    static int wrapIndex(int index, int size);
 
     void resizeLookaheadBuffers();
     void clearState();
@@ -140,8 +125,6 @@ private:
     DerivedParameters derived;
 
     double currentSampleRate = 44100.0;
-    int currentMaxBlockSize = 0;
-    int currentNumChannels = 0;
     int maxBuf = 1;
     int maxTotalBuf = 2;
 

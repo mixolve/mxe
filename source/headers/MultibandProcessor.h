@@ -37,23 +37,6 @@ public:
     int getLatencySamples() const noexcept;
 
 private:
-    struct SmoothedValue
-    {
-        double current = 1.0;
-        double target = 1.0;
-        double step = 0.0;
-        int remainingSteps = 0;
-
-        void snapTo(double value) noexcept;
-        void setTarget(double value) noexcept;
-        void beginBlock(int numSamples) noexcept;
-        void advance() noexcept;
-    };
-
-    static double roundToJsfxStep(double value);
-    static double dbToAmp(double decibels);
-    static int wrapIndex(int index, int size);
-
     void snapFullbandParameters() noexcept;
     void clearAlignmentBuffers();
     void updateLatencyCompensation();
